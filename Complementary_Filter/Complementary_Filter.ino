@@ -17,19 +17,19 @@
 #define PRINT_PERIOD 10
 
 // Period for accel sampling 
-#define ACC_PERIOD 3
+#define ACC_PERIOD 2
 
 // Window size for averaging accel data
-#define N_ACC_WINDOW 60
+#define N_ACC_WINDOW 40
 
 // Period for gyro sampling (1ms, f = 1kHz)
-#define GYRO_PERIOD 1
+#define GYRO_PERIOD 150
 
 // Window size for filtering final fused output
-#define N_FUSE_WINDOW 10
+#define N_FUSE_WINDOW 1
 
 // Period for reseting integrators
-#define RESET_PERIOD 50
+//#define RESET_PERIOD 50
 
 // Keep track of timing for periodic events
 unsigned long printTime = 0;
@@ -110,22 +110,29 @@ void loop() {
 
     ////////////////////////////////////////
     // Read gyro data and run fusion at 1kHz   
-    if(sysTime >= gyroTime + GYRO_PERIOD){
+    if(micros() >= gyroTime + GYRO_PERIOD){
       gyroTime += GYRO_PERIOD;
       
       imu.readGyro(true);
     
       // Fuse gyro and accel data with comp. filter
-      imu.fusedAngle[X] = 0.96*imu.gyroAngle[X] + 0.04*accelAngleFiltered[X]; 
-
+      if(abs(accelAngleFiltered[X]) < 110 && imu.accVector[Z] > -0.1){
+        imu.gyroAngle[X] = imu.gyroAngle[X] + 0.02*(accelAngleFiltered[X] - imu.gyroAngle[X]);
+      }
+      imu.fusedAngle[X] = 0.98*imu.gyroAngle[X] + 0.02*accelAngleFiltered[X]; 
+         
       // Don't trust accel roll angle when pitch near +/- 90 degrees
       if(abs(imu.fusedAngle[X]) > 85 ){        
         imu.fusedAngle[Y] = 1.00*imu.gyroAngle[Y] + 0.0*accelAngleFiltered[Y];
       }
-      else{    
-        imu.fusedAngle[Y] = 0.96*imu.gyroAngle[Y] + 0.04*accelAngleFiltered[Y];
+      else{  
+        if(imu.accVector[Z] > -0.25){        
+          imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.02*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
+        }
+        imu.fusedAngle[Y] = 0.98*imu.gyroAngle[Y] + 0.02*accelAngleFiltered[Y];        
       }
-      
+
+     
       // Buffer samples
       xFusedBuffer[fuseSamp] = imu.fusedAngle[X];
       yFusedBuffer[fuseSamp] = imu.fusedAngle[Y];
@@ -152,7 +159,7 @@ void loop() {
     }
     
     // Check for rest conditions at interval
-    if(sysTime >= resetTime + RESET_PERIOD){
+    /*if(sysTime >= resetTime + RESET_PERIOD){
       resetTime += RESET_PERIOD;
      
       // Correct estimation when angular rate is low (will compensate for gyro drift)
@@ -173,7 +180,7 @@ void loop() {
           imu.gyroAngle[Y] = 0.65*imu.gyroAngle[Y] + 0.35*accelAngleFiltered[Y];
         }
       }
-    }
+    }*/
   
     // Rate limited serial output to plotter
     if(sysTime >= printTime + PRINT_PERIOD){
@@ -184,20 +191,20 @@ void loop() {
       Serial.print(" ");
       
       Serial.print(fusedFiltered[Y]);
-      Serial.print(" ");  
+      Serial.println(" ");  
       
-      Serial.print(imu.fusedAngle[Z]);
-      Serial.println(" ");
+      //Serial.print(imu.fusedAngle[Z]);
+      //Serial.println(" ");
 
       // Filtered accelerometer angles
-      /*Serial.print(accelAngleFiltered[X]);
-      Serial.print(" ");
+      //Serial.print(accelAngleFiltered[X]);
+      //Serial.print(" ");
       
-      Serial.print(accelAngleFiltered[Y]);
-      Serial.print(" ");
+      //Serial.print(accelAngleFiltered[Y]);
+      //Serial.println(" ");
 
-      Serial.print(imu.accVector[Z]);
-      Serial.println(" ");*/
+     //Serial.print(imu.accVector[Z]);
+      //Serial.println(" ");*/
     }
   } 
 }
