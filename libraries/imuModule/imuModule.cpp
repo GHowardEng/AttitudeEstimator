@@ -7,11 +7,6 @@ void imuModule::readGyro(bool integrate){
   Wire.write(GYRO_START); // Point to first Gyro register
   Wire.endTransmission(false);
   Wire.requestFrom(this->addr, 6, true); // Read all axes
-
-  // Record timestep
-  lastTime = currentTime;
-  currentTime = millis();
-  dt = (currentTime - lastTime)/1000;
   
   // Default scalar for 250 deg/s range is 1/131. 
   // Adjusted proportionally for current range (1000 deg/s)
@@ -32,6 +27,11 @@ void imuModule::readGyro(bool integrate){
   gyroRate[Y] -= yGyroBias;
   gyroRate[Z] -= zGyroBias;
 
+  // Record timestep
+  lastTime = currentTime;
+  currentTime = millis();
+  dt = (currentTime - lastTime)/1000;
+  
   if(integrate){
     // Integrate angular rates to estimate attitude
     for(int i = X; i <= Z; i++){

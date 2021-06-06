@@ -1,4 +1,5 @@
-// Read data from MPU6050 IMU and estimate attitude with complementary filter
+// Read data from MPU6050 IMU and estimate attitude with complementary filter. 
+// Includes logic to correct gyro estimate and shift weights of filter as needed.
 // Grant Howard 
 // 2021-06-05
 
@@ -12,20 +13,20 @@
 // Calibration button
 #define BUTTON 34
 
-// Send serial data every x ms
+// Send serial data every 10 ms (100 Hz)
 #define PRINT_PERIOD 10
 
 // Period for accel sampling 
 #define ACC_PERIOD 3
 
-// Window size for averaging accel
-#define N_ACC_WINDOW 60
+// Window size for averaging accel data
+#define N_ACC_WINDOW 30
 
-// Period for gyro sampling (1kHz)
+// Period for gyro sampling (1ms, f = 1kHz)
 #define GYRO_PERIOD 1
 
 // Window size for filtering final fused output
-#define N_FUSE_WINDOW 100
+#define N_FUSE_WINDOW 10
 
 // Period for reseting integrators
 #define RESET_PERIOD 50
@@ -115,9 +116,16 @@ void loop() {
       imu.readGyro(true);
     
       // Fuse gyro and accel data with comp. filter
-      imu.fusedAngle[X] = 0.96*imu.gyroAngle[X] + 0.04*accelAngleFiltered[X];    
-      imu.fusedAngle[Y] = 0.96*imu.gyroAngle[Y] + 0.04*accelAngleFiltered[Y];
+      imu.fusedAngle[X] = 0.96*imu.gyroAngle[X] + 0.04*accelAngleFiltered[X]; 
 
+      // Don't trust accel roll angle when pitch near +/- 90 degrees
+      if(abs(imu.fusedAngle[X]) > 85 ){        
+        imu.fusedAngle[Y] = 1.00*imu.gyroAngle[Y] + 0.0*accelAngleFiltered[Y];
+      }
+      else{    
+        imu.fusedAngle[Y] = 0.96*imu.gyroAngle[Y] + 0.04*accelAngleFiltered[Y];
+      }
+      
       // Buffer samples
       xFusedBuffer[fuseSamp] = imu.fusedAngle[X];
       yFusedBuffer[fuseSamp] = imu.fusedAngle[Y];
@@ -147,15 +155,22 @@ void loop() {
     if(sysTime >= resetTime + RESET_PERIOD){
       resetTime += RESET_PERIOD;
      
-      // Reset integrators if at rest (will correct for gyro drift)
-      // ALTERNATIVE with complete Euler angles
-      //if((abs(imu.gyroRate[X]) + abs(imu.gyroRate[Y])) < 20 )
+      // Correct estimation when angular rate is low (will compensate for gyro drift)
+
+      // At any angle
+      //if((abs(imu.gyroRate[X]) + abs(imu.gyroRate[Y])) < 20 ){
       
-      // This check for z accel and max attitudes is a fix until full euler angles implemented for accelerometer. (Capped at +/- 90)
+      // Within limited angles
       // Look at combined magnitude of roll/pitch rates and accelerometer angle (tune)
-      if((abs(imu.gyroRate[X]) + abs(imu.gyroRate[Y])) < 35 && abs(imu.accAngle[X]) < 87 && abs(imu.accAngle[Y] < 87 && abs(imu.accVector[Z] > 0.15))){
-        imu.gyroAngle[X] = 0.70*imu.gyroAngle[X] + 0.30*accelAngleFiltered[X];
-        imu.gyroAngle[Y] = 0.70*imu.gyroAngle[Y] + 0.30*accelAngleFiltered[Y];
+      if((abs(imu.gyroRate[X]) + abs(imu.gyroRate[Y])) < 30 && abs(imu.accAngle[X]) < 105 && abs(imu.accAngle[Y] < 105 && abs(imu.accVector[Z] > -0.1))){
+       
+        // Converge gyro estimate towards acceleration angle measurement
+        imu.gyroAngle[X] = 0.65*imu.gyroAngle[X] + 0.35*accelAngleFiltered[X];
+        
+        // Dont correct roll angle if pitch is near 90 degrees (accel angle discontinuous here)
+        if(abs(imu.fusedAngle[X]) < 85){
+          imu.gyroAngle[Y] = 0.65*imu.gyroAngle[Y] + 0.35*accelAngleFiltered[Y];
+        }
       }
     }
   
