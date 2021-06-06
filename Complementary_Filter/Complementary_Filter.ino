@@ -41,10 +41,11 @@ unsigned long resetTime = 0;
 imuModule imu;
 
 void setup() {
-  // Init serial bus
-  Wire.begin();
-  Wire.setClock(1000000); // I2C clock
-  
+  Wire.begin();           // Init serial bus
+  Wire.setClock(1000000); // I2C clock. Run fast to speed up sampling!
+
+  // Running serial at a high rate to minimize extra latency. 
+  // Can eventually be removed if better communication/visualization implemented
   Serial.begin(500000);
   
   // Setup imu;
@@ -57,7 +58,8 @@ void setup() {
 
 // Main Loop
 void loop() {
-  
+
+  // Setup arrays for running filtering
   int accSamp = 0;
   float xAccBuffer[N_ACC_WINDOW];
   float yAccBuffer[N_ACC_WINDOW];
@@ -166,9 +168,9 @@ void loop() {
       Serial.print(" ");
       
       Serial.print(fusedFiltered[Y]);
-      //Serial.print(" ");  
+      Serial.print(" ");  
       
-      //Serial.print(imu.fusedAngle[Z]);
+      Serial.print(imu.fusedAngle[Z]);
       Serial.println(" ");
 
       // Filtered accelerometer angles

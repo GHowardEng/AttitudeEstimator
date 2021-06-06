@@ -1,6 +1,6 @@
 #include "imuModule.h"
 
-
+// Read gyro data and update estimate (if bool true)
 void imuModule::readGyro(bool integrate){
   
   Wire.beginTransmission(this->addr);
@@ -13,9 +13,11 @@ void imuModule::readGyro(bool integrate){
   currentTime = millis();
   dt = (currentTime - lastTime)/1000;
   
-  gyroRate[X] = (Wire.read() << 8 | Wire.read()) / (131.0/4); // For a 250deg/s range we have to divide first the raw value by 131.0, according to the datasheet
-  gyroRate[Y] = (Wire.read() << 8 | Wire.read()) / (131.0/4);
-  gyroRate[Z] = (Wire.read() << 8 | Wire.read()) / (131.0/4);
+  // Default scalar for 250 deg/s range is 1/131. 
+  // Adjusted proportionally for current range (1000 deg/s)
+  gyroRate[X] = (Wire.read() << 8 | Wire.read()) / (131.0/4);  	// X-axis
+  gyroRate[Y] = (Wire.read() << 8 | Wire.read()) / (131.0/4);	// Y-axis
+  gyroRate[Z] = (Wire.read() << 8 | Wire.read()) / (131.0/4);	// Z-axis
 
     // Correct for negative values
   for(int i = X; i <= Z; i++){
@@ -33,19 +35,22 @@ void imuModule::readGyro(bool integrate){
   if(integrate){
     // Integrate angular rates to estimate attitude
     for(int i = X; i <= Z; i++){
-      gyroAngle[i] = gyroAngle[i] + gyroRate[i]*dt;
+      gyroAngle[i] += gyroRate[i]*dt;
     }
   }
   
 }
 
+// Read accelerometer data and compute angles 
 void imuModule::readAcc(){
   
   Wire.beginTransmission(this->addr);
   Wire.write(ACC_START); // Point to first acceleration register (ACCEL_XOUT_H)
   Wire.endTransmission(false);
-  Wire.requestFrom(this->addr, 6, true); // Read accel data from 6 registers 
+  Wire.requestFrom(this->addr, 6, true); // Read accel data from all 6 registers 
   
+  // Default scalar for 2g range is 1/16384. 
+  // Adjusted proportionally for current range (8g)
   accVector[X] = (Wire.read() << 8 | Wire.read()) / (16384.0/4); // X-axis
   accVector[Y] = (Wire.read() << 8 | Wire.read()) / (16384.0/4); // Y-axis
   accVector[Z] = (Wire.read() << 8 | Wire.read()) / (16384.0/4); // Z-axis
@@ -67,7 +72,9 @@ void imuModule::readAcc(){
   accAngle[X] = atan2(accVector[Y], accVector[Z]) * 180/M_PI;
   accAngle[Y] = atan2(-accVector[X], sqrt(accVector[Y]*accVector[Y] + accVector[Z]*accVector[Z])) * 180/M_PI;
   
-  // Correct for attitudes greater than +/- 90 degrees (when unit is upside-down)
+  // Adjust for attitudes greater than +/- 90 degrees (when unit is upside-down)
+  // This works but creates some discontinuities in the signal when transitioning from +180 to -180
+  // It also allows for constant correction of the gyro estimate
     /*if(accVector[Z] < 0.0)
 	{
 		if(accAngle[X] > 0){
@@ -86,11 +93,10 @@ void imuModule::readAcc(){
 	}*/
 }
 
-// Read all axes and compute angles
+// Read all axes
 void imuModule::readIMU(){
-  //readAcc();
-  //accAngle[X] = (atan(accVector[Y] / sqrt(pow(accVector[X], 2) + pow(accVector[Z], 2))) * 180 / PI);
-  //accAngle[Y] = (atan(-1 * accVector[X] / sqrt(pow(accVector[Y], 2) + pow(accVector[Z], 2))) * 180 / PI);  
+	readAcc();
+	readGyro(false);
 }
 
 // Initialization function
@@ -102,14 +108,14 @@ void imuModule::init(){
 
   // Configure Accelerometer Sensitivity - Full Scale Range (default +/- 2g)
   Wire.beginTransmission(this->addr);
-  Wire.write(0x1C);                  //Talk to the ACCEL_CONFIG register (1C hex)
-  Wire.write(0x10);                  //Set the register bits as 00010000 (+/- 8g full scale range)
+  Wire.write(0x1C);                  // Point to ACCEL_CONFIG register
+  Wire.write(0x10);                  // Set register to 8g full scale range
   Wire.endTransmission(true);
   
   // Configure Gyro Sensitivity - Full Scale Range (default +/- 250deg/s)
   Wire.beginTransmission(this->addr);
-  Wire.write(0x1B);                   // Talk to the GYRO_CONFIG register (1B hex)
-  Wire.write(0x10);                   // Set the register bits as 00010000 (1000deg/s full scale)
+  Wire.write(0x1B);                   // Point to GYRO_CONFIG register
+  Wire.write(0x10);                   // Set register to 1000deg/s full scale
   Wire.endTransmission(true);  
 }
 
@@ -141,7 +147,7 @@ void imuModule::calibrate(){
   gyroAngle[Y] = 0;
   gyroAngle[Z] = 0;
   
-  // Collect n samples of data with no correction applied
+  // Collect n samples of data with no bias correction applied
   for (int i = 0; i < calSamples; i++){
     // Accelerometer
     readAcc();
@@ -150,7 +156,7 @@ void imuModule::calibrate(){
     zAccBuffer[i] = accVector[Z];
     
     // Hol up
-    delay(5);
+    delay(2);
 
     // Gyro
     readGyro(false);
@@ -159,7 +165,7 @@ void imuModule::calibrate(){
     zGyroBuffer[i] = gyroRate[Z];
 
     // Hol up
-    delay(5);
+    delay(2);
   }
 
   // Sum all samples
@@ -199,7 +205,7 @@ void imuModule::calibrate(){
   Serial.print(yGyroBias);
   Serial.print(" Z Gyro Bias: ");
   Serial.println(zGyroBias);
-
-  delay(3000);*/
+	
+  delay(3000); // Delay to read data*/
       
 }

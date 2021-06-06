@@ -37,6 +37,9 @@ class imuModule{
   //int gyroRange = 250;
   int gyroRange = 1000;
 
+  // Number of samples to average for calibration
+  int calSamples = 200;
+  
   // Methods
   void init();
   void readGyro(bool integrate);
@@ -60,8 +63,6 @@ class imuModule{
   float currentTime = 0;
   float dt = 0;
 
-  // Number of samples to average for calibration
-  int calSamples = 200;
 };
 
 
