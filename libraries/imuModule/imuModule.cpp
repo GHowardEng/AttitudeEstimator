@@ -27,6 +27,9 @@ void imuModule::readGyro(bool integrate){
   gyroRate[Y] -= yGyroBias;
   gyroRate[Z] -= zGyroBias;
 
+  if (accVector[Z] < 0)
+	  gyroRate[X] *= -1;
+
   // Record timestep
   lastTime = currentTime;
   currentTime = millis();
@@ -75,7 +78,7 @@ void imuModule::readAcc(){
   // Adjust for attitudes greater than +/- 90 degrees (when unit is upside-down)
   // This works but creates some discontinuities in the signal when transitioning from +180 to -180
   // It also allows for constant correction of the gyro estimate
-    /*if(accVector[Z] < 0.0)
+    if(accVector[Z] < 0.0)
 	{
 		if(accAngle[X] > 0){
 			accAngle[X] = 180 + (accAngle[X] - 180);
@@ -90,7 +93,7 @@ void imuModule::readAcc(){
 		else{
 			accAngle[Y] = (-180 - accAngle[Y]);		
 		}
-	}*/
+	}
 }
 
 // Read all axes
