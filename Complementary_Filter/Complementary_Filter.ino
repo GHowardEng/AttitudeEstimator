@@ -20,7 +20,7 @@
 #define ACC_PERIOD 3
 
 // Window size for averaging accel data
-#define N_ACC_WINDOW 30
+#define N_ACC_WINDOW 60
 
 // Period for gyro sampling (1ms, f = 1kHz)
 #define GYRO_PERIOD 1
@@ -162,13 +162,14 @@ void loop() {
       
       // Within limited angles
       // Look at combined magnitude of roll/pitch rates and accelerometer angle (tune)
-      if((abs(imu.gyroRate[X]) + abs(imu.gyroRate[Y])) < 30 && abs(imu.accAngle[X]) < 105 && abs(imu.accAngle[Y] < 105 && abs(imu.accVector[Z] > -0.1))){
+      if((abs(imu.gyroRate[X]) + abs(imu.gyroRate[Y])) < 30 && abs(imu.accAngle[X]) < 105 && abs(imu.accAngle[Y] < 105 && abs(imu.accVector[Z] > -0.3))){
        
-        // Converge gyro estimate towards acceleration angle measurement
+        // Converge gyro pitch estimate towards acceleration angle measurement
         imu.gyroAngle[X] = 0.65*imu.gyroAngle[X] + 0.35*accelAngleFiltered[X];
         
         // Dont correct roll angle if pitch is near 90 degrees (accel angle discontinuous here)
         if(abs(imu.fusedAngle[X]) < 85){
+          // Converge gyro roll estimate towards acceleration angle measurement
           imu.gyroAngle[Y] = 0.65*imu.gyroAngle[Y] + 0.35*accelAngleFiltered[Y];
         }
       }
