@@ -26,7 +26,7 @@
 #define GYRO_PERIOD 250
 
 // Window size for filtering final fused output
-#define N_FUSE_WINDOW 2
+#define N_FUSE_WINDOW 12
 
 // Keep track of timing for periodic events
 unsigned long printTime = 0;
@@ -110,6 +110,7 @@ void loop() {
           imu.gyroAngle[X] = imu.gyroAngle[X] + 0.015*(accelAngleFiltered[X] - imu.gyroAngle[X]);
        }
        imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.015*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
+    }
 
     ////////////////////////////////////////
     // Read gyro data and run fusion at 1kHz   
