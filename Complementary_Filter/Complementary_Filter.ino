@@ -20,7 +20,7 @@
 #define ACC_PERIOD 3
 
 // Window size for averaging accel data
-#define N_ACC_WINDOW 60
+#define N_ACC_WINDOW 15
 
 // Period for gyro sampling (1ms, f = 1kHz)
 #define GYRO_PERIOD 1
@@ -106,6 +106,13 @@ void loop() {
       
        accelAngleFiltered[X] /= N_ACC_WINDOW;
        accelAngleFiltered[Y] /= N_ACC_WINDOW;
+
+       // Fixed-gain observer to correct estimates
+
+       if(!(abs(accelAngleFiltered[Y]) > 62 && abs(accelAngleFiltered[Y]) < 118)){
+          imu.gyroAngle[X] = imu.gyroAngle[X] + 0.015*(accelAngleFiltered[X] - imu.gyroAngle[X]);
+       }
+       imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.015*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
     }
 
     ////////////////////////////////////////
