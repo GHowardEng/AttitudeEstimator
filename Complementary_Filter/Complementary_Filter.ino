@@ -16,20 +16,17 @@
 // Send serial data every 10 ms (100 Hz)
 #define PRINT_PERIOD 10
 
-// Period for accel sampling 
+// Period for accel sampling (2ms, 500 Hz)
 #define ACC_PERIOD 2
 
 // Window size for averaging accel data
-#define N_ACC_WINDOW 40
+#define N_ACC_WINDOW 30
 
-// Period for gyro sampling (1ms, f = 1kHz)
-#define GYRO_PERIOD 150
+// Period for gyro sampling (250us, 4kHz)
+#define GYRO_PERIOD 250
 
 // Window size for filtering final fused output
-#define N_FUSE_WINDOW 1
-
-// Period for reseting integrators
-//#define RESET_PERIOD 50
+#define N_FUSE_WINDOW 2
 
 // Keep track of timing for periodic events
 unsigned long printTime = 0;
@@ -106,6 +103,13 @@ void loop() {
       
        accelAngleFiltered[X] /= N_ACC_WINDOW;
        accelAngleFiltered[Y] /= N_ACC_WINDOW;
+
+       // Fixed-gain observer to correct estimates
+
+       if(!(abs(accelAngleFiltered[Y]) > 58 && abs(accelAngleFiltered[Y]) < 122)){
+          imu.gyroAngle[X] = imu.gyroAngle[X] + 0.02*(accelAngleFiltered[X] - imu.gyroAngle[X]);
+       }
+       imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.02*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
     }
 
     ////////////////////////////////////////
@@ -114,25 +118,21 @@ void loop() {
       gyroTime += GYRO_PERIOD;
       
       imu.readGyro(true);
-    
-      // Fuse gyro and accel data with comp. filter
-      if(abs(accelAngleFiltered[X]) < 110 && imu.accVector[Z] > -0.1){
+
+      // Correct with reduced weight
+      if(abs(accelAngleFiltered[Y]) > 58 && abs(accelAngleFiltered[Y]) < 122){
+        imu.fusedAngle[X] = 0.995*imu.gyroAngle[X] + 0.005*accelAngleFiltered[X]; 
+      }
+      else{
+        // Fixed-gain observer to correct estimate
         imu.gyroAngle[X] = imu.gyroAngle[X] + 0.02*(accelAngleFiltered[X] - imu.gyroAngle[X]);
-      }
-      imu.fusedAngle[X] = 0.98*imu.gyroAngle[X] + 0.02*accelAngleFiltered[X]; 
-         
-      // Don't trust accel roll angle when pitch near +/- 90 degrees
-      if(abs(imu.fusedAngle[X]) > 85 ){        
-        imu.fusedAngle[Y] = 1.00*imu.gyroAngle[Y] + 0.0*accelAngleFiltered[Y];
-      }
-      else{  
-        if(imu.accVector[Z] > -0.25){        
-          imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.02*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
-        }
-        imu.fusedAngle[Y] = 0.98*imu.gyroAngle[Y] + 0.02*accelAngleFiltered[Y];        
+        // Fuse gyro and accel data with comp. filter
+        imu.fusedAngle[X] = 0.98*imu.gyroAngle[X] + 0.02*accelAngleFiltered[X]; 
       }
 
-     
+      // Fuse gyro and accel data with comp. filter
+      imu.fusedAngle[Y] = 0.98*imu.gyroAngle[Y] + 0.02*accelAngleFiltered[Y];        
+          
       // Buffer samples
       xFusedBuffer[fuseSamp] = imu.fusedAngle[X];
       yFusedBuffer[fuseSamp] = imu.fusedAngle[Y];
@@ -191,17 +191,17 @@ void loop() {
       Serial.print(" ");
       
       Serial.print(fusedFiltered[Y]);
-      Serial.println(" ");  
+      Serial.println(" "); 
       
       //Serial.print(imu.fusedAngle[Z]);
       //Serial.println(" ");
 
       // Filtered accelerometer angles
-      //Serial.print(accelAngleFiltered[X]);
-      //Serial.print(" ");
+      /*Serial.print(accelAngleFiltered[X]);
+      Serial.print(" ");
       
-      //Serial.print(accelAngleFiltered[Y]);
-      //Serial.println(" ");
+      Serial.print(accelAngleFiltered[Y]);
+      Serial.println(" ");*/
 
      //Serial.print(imu.accVector[Z]);
       //Serial.println(" ");*/
