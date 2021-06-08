@@ -32,8 +32,8 @@ void imuModule::readGyro(bool integrate){
 
   // Record timestep
   lastTime = currentTime;
-  currentTime = millis();
-  dt = (currentTime - lastTime)/1000;
+  currentTime = micros();
+  dt = (currentTime - lastTime)/1000000;
   
   if(integrate){
     // Integrate angular rates to estimate attitude
@@ -81,11 +81,11 @@ void imuModule::readAcc(){
     if(accVector[Z] < 0.0)
 	{
 		if(accAngle[X] > 0){
-			accAngle[X] = 180 + (accAngle[X] - 180);
+			accAngle[X] = 180 - accAngle[X];
 		}
 		else{
-			accAngle[X] = 180 - (180-accAngle[X]);
-		}
+			accAngle[X] =  -(accAngle[X] + 180);
+		}			
 			
 		if(accAngle[Y] > 0){
 			accAngle[Y] = - (accAngle[Y] - 180);
