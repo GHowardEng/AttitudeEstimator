@@ -106,10 +106,10 @@ void loop() {
 
        // Fixed-gain observer to correct estimates
 
-       if(!(abs(accelAngleFiltered[Y]) > 58 && abs(accelAngleFiltered[Y]) < 122)){
-          imu.gyroAngle[X] = imu.gyroAngle[X] + 0.02*(accelAngleFiltered[X] - imu.gyroAngle[X]);
+       if(!(abs(accelAngleFiltered[Y]) > 62 && abs(accelAngleFiltered[Y]) < 118)){
+          imu.gyroAngle[X] = imu.gyroAngle[X] + 0.01*(accelAngleFiltered[X] - imu.gyroAngle[X]);
        }
-       imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.02*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
+       imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.01*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
     }
 
     ////////////////////////////////////////
@@ -124,8 +124,6 @@ void loop() {
         imu.fusedAngle[X] = 0.995*imu.gyroAngle[X] + 0.005*accelAngleFiltered[X]; 
       }
       else{
-        // Fixed-gain observer to correct estimate
-        imu.gyroAngle[X] = imu.gyroAngle[X] + 0.02*(accelAngleFiltered[X] - imu.gyroAngle[X]);
         // Fuse gyro and accel data with comp. filter
         imu.fusedAngle[X] = 0.98*imu.gyroAngle[X] + 0.02*accelAngleFiltered[X]; 
       }
