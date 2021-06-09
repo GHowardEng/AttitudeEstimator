@@ -24,6 +24,8 @@ class imuModule{
   // Gyro
   float gyroRate[3];
   float gyroAngle[3] = {0,0,0};
+  float inertialRate[3] = {0,0,0};
+  float inertialAngle[3] = {0,0,0};
   
   // Filter output
   float fusedAngle[3];
@@ -46,6 +48,7 @@ class imuModule{
   void readAcc();
   void readIMU();
   void calibrate();
+  float getDt() {return dt;};
 
   private:
 

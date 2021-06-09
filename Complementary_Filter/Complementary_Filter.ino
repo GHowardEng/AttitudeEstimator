@@ -62,6 +62,7 @@ void loop() {
   float xAccBuffer[N_ACC_WINDOW];
   float yAccBuffer[N_ACC_WINDOW];
   float accelAngleFiltered[2];
+  float pitchAngle = 0;
 
   int fuseSamp = 0;
   float xFusedBuffer[N_FUSE_WINDOW];
@@ -105,31 +106,37 @@ void loop() {
        accelAngleFiltered[Y] /= N_ACC_WINDOW;
 
        // Fixed-gain observer to correct estimates
-
-       if(!(abs(accelAngleFiltered[Y]) > 62 && abs(accelAngleFiltered[Y]) < 118)){
+       if(!(abs(imu.fusedAngle[Y]) > 45 && abs(imu.fusedAngle[Y]) < 150)){
           imu.gyroAngle[X] = imu.gyroAngle[X] + 0.015*(accelAngleFiltered[X] - imu.gyroAngle[X]);
+          imu.inertialAngle[X] = imu.inertialAngle[X] + 0.02*(accelAngleFiltered[X] - imu.inertialAngle[X]);
        }
        imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.015*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
     }
 
     ////////////////////////////////////////
-    // Read gyro data and run fusion at 1kHz   
+    // Read gyro data and run fusion at 4kHz   
     if(micros() >= gyroTime + GYRO_PERIOD){
       gyroTime += GYRO_PERIOD;
       
       imu.readGyro(true);
 
+      // Fuse gyro and accel roll angle with comp. filter
+      imu.fusedAngle[Y] = 0.98*imu.gyroAngle[Y] + 0.02*accelAngleFiltered[Y]; 
+
+      imu.inertialRate[X] = cos(imu.fusedAngle[Y]*M_PI/180)*imu.gyroRate[X] + 0.7071 * sin(imu.fusedAngle[Y]*M_PI/180)*imu.gyroRate[Z];
+      imu.inertialAngle[X] += imu.inertialRate[X] * imu.getDt();
+      
       // Correct with reduced weight
-      if(abs(accelAngleFiltered[Y]) > 58 && abs(accelAngleFiltered[Y]) < 122){
-        imu.fusedAngle[X] = 0.995*imu.gyroAngle[X] + 0.005*accelAngleFiltered[X]; 
+      if(abs(accelAngleFiltered[Y]) > 45 && abs(accelAngleFiltered[Y]) < 150){
+        imu.fusedAngle[X] = 1.0*imu.inertialAngle[X] + 0.00*accelAngleFiltered[X]; 
       }
       else{
         // Fuse gyro and accel data with comp. filter
-        imu.fusedAngle[X] = 0.98*imu.gyroAngle[X] + 0.02*accelAngleFiltered[X]; 
-      }
-
-      // Fuse gyro and accel data with comp. filter
-      imu.fusedAngle[Y] = 0.98*imu.gyroAngle[Y] + 0.02*accelAngleFiltered[Y];        
+        if(abs(imu.fusedAngle[Y]) > 45)
+          imu.fusedAngle[X] = 0.98*imu.inertialAngle[X] + 0.02*accelAngleFiltered[X]; 
+        else
+          imu.fusedAngle[X] = 0.98*imu.gyroAngle[X] + 0.02*accelAngleFiltered[X]; 
+      }      
           
       // Buffer samples
       xFusedBuffer[fuseSamp] = imu.fusedAngle[X];
@@ -188,8 +195,11 @@ void loop() {
       Serial.print(fusedFiltered[X]);
       Serial.print(" ");
       
+      //Serial.print(accelAngleFiltered[Y]);
+      //Serial.print(" "); 
+
       Serial.print(fusedFiltered[Y]);
-      Serial.println(" "); 
+      Serial.println(" ");
       
       //Serial.print(imu.fusedAngle[Z]);
       //Serial.println(" ");

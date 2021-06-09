@@ -30,16 +30,21 @@ void imuModule::readGyro(bool integrate){
   if (accVector[Z] < 0)
 	  gyroRate[X] *= -1;
 
-  // Record timestep
+	
+  //inertialRate[X] = cos(abs(accAngle[Y])*M_PI/180)*gyroRate[X] + sin(accAngle[Y]*M_PI/180)*gyroRate[Z];
+ 
+ // Record timestep
   lastTime = currentTime;
   currentTime = micros();
   dt = (currentTime - lastTime)/1000000;
   
   if(integrate){
+	  
     // Integrate angular rates to estimate attitude
     for(int i = X; i <= Z; i++){
       gyroAngle[i] += gyroRate[i]*dt;
     }
+	//inertialAngle[X] += inertialRate[X] * dt;
   }
   
 }
