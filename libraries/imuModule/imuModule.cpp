@@ -27,8 +27,9 @@ void imuModule::readGyro(bool integrate){
   gyroRate[Y] -= yGyroBias;
   gyroRate[Z] -= zGyroBias;
 
-  if (accVector[Z] < 0)
-	  gyroRate[X] *= -1;
+  if (accVector[Z] < 0){
+	gyroRate[X] *= -1;
+  }
 
 	
   //inertialRate[X] = cos(abs(accAngle[Y])*M_PI/180)*gyroRate[X] + sin(accAngle[Y]*M_PI/180)*gyroRate[Z];
@@ -44,7 +45,21 @@ void imuModule::readGyro(bool integrate){
     for(int i = X; i <= Z; i++){
       gyroAngle[i] += gyroRate[i]*dt;
     }
-	//inertialAngle[X] += inertialRate[X] * dt;
+	
+	if(gyroAngle[Y] > 180){
+	  gyroAngle[Y] -= 360;
+
+	}
+	else if(gyroAngle[Y] < -180){
+	  gyroAngle[Y] += 360;
+	}
+
+	if(gyroAngle[Z] > 360){
+	  gyroAngle[Z] -= 360;
+	}
+	else if(gyroAngle[Z] < -360){
+	  gyroAngle[Z] += 360;
+	}
   }
   
 }
@@ -75,23 +90,21 @@ void imuModule::readAcc(){
   accVector[X] -= xAccBias;
   accVector[Y] -= yAccBias;
   accVector[Z] -= zAccBias;
+  
+  accelMag = sqrt(pow(accVector[X],2) + pow(accVector[Y],2) + pow(accVector[Z],2));
 
   // Get angles
-  accAngle[X] = atan2(accVector[Y], accVector[Z]) * 180/M_PI;
-  accAngle[Y] = atan2(-accVector[X], sqrt(accVector[Y]*accVector[Y] + accVector[Z]*accVector[Z])) * 180/M_PI;
+  //accAngle[X] = atan2(accVector[Y], accVector[Z]) * 180/M_PI;
+  //accAngle[Y] = atan2(-accVector[X], sqrt(accVector[Y]*accVector[Y] + accVector[Z]*accVector[Z])) * 180/M_PI;
+  
+  accAngle[X] = (atan(accVector[Y] / sqrt(pow(accVector[X], 2) + pow(accVector[Z], 2))) * 180 / PI);
+  accAngle[Y] = (atan(-1 * accVector[X] / sqrt(pow(accVector[Y], 2) + pow(accVector[Z], 2))) * 180 / PI);
   
   // Adjust for attitudes greater than +/- 90 degrees (when unit is upside-down)
   // This works but creates some discontinuities in the signal when transitioning from +180 to -180
   // It also allows for constant correction of the gyro estimate
     if(accVector[Z] < 0.0)
-	{
-		if(accAngle[X] > 0){
-			accAngle[X] = 180 - accAngle[X];
-		}
-		else{
-			accAngle[X] =  -(accAngle[X] + 180);
-		}			
-			
+	{				
 		if(accAngle[Y] > 0){
 			accAngle[Y] = - (accAngle[Y] - 180);
 		}

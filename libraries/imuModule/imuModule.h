@@ -20,6 +20,7 @@ class imuModule{
   // Accel
   float accVector[3];
   float accAngle[3] = {0,0,0};
+  float accelMag;
   
   // Gyro
   float gyroRate[3];
