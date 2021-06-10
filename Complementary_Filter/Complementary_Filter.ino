@@ -16,17 +16,17 @@
 // Send serial data every 10 ms (100 Hz)
 #define PRINT_PERIOD 10
 
-// Period for accel sampling (2ms, 500 Hz)
-#define ACC_PERIOD 2
+// Period for accel sampling (3ms, 333 Hz)
+#define ACC_PERIOD 3
 
 // Window size for averaging accel data
-#define N_ACC_WINDOW 15
+#define N_ACC_WINDOW 25
 
 // Period for gyro sampling (250us, 4kHz)
 #define GYRO_PERIOD 250
 
 // Window size for filtering final fused output
-#define N_FUSE_WINDOW 12
+#define N_FUSE_WINDOW 10
 
 // Keep track of timing for periodic events
 unsigned long printTime = 0;
@@ -62,12 +62,13 @@ void loop() {
   float xAccBuffer[N_ACC_WINDOW];
   float yAccBuffer[N_ACC_WINDOW];
   float accelAngleFiltered[2];
+  float pitchAngle = 0;
 
   int fuseSamp = 0;
   float xFusedBuffer[N_FUSE_WINDOW];
   float yFusedBuffer[N_FUSE_WINDOW];
   float fusedFiltered[2];
-  
+
   while(1){
     // Run calibration on button press
     if(!digitalRead(BUTTON)){
@@ -104,33 +105,38 @@ void loop() {
        accelAngleFiltered[X] /= N_ACC_WINDOW;
        accelAngleFiltered[Y] /= N_ACC_WINDOW;
 
-       // Fixed-gain observer to correct estimates
-
-       if(!(abs(accelAngleFiltered[Y]) > 62 && abs(accelAngleFiltered[Y]) < 118)){
-          imu.gyroAngle[X] = imu.gyroAngle[X] + 0.015*(accelAngleFiltered[X] - imu.gyroAngle[X]);
+       // Fixed-gain observer to correct estimates. Check acceleration magnitude
+       if(abs(imu.accelMag) < 1.02 && abs(imu.accelMag) > 0.98){
+          imu.gyroAngle[X] = imu.gyroAngle[X] + 0.025*(accelAngleFiltered[X] - imu.gyroAngle[X]);
+          imu.inertialAngle[X] = imu.inertialAngle[X] + 0.025*(accelAngleFiltered[X] - imu.inertialAngle[X]);
+          
+          imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.025*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
        }
-       imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.015*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
     }
 
     ////////////////////////////////////////
-    // Read gyro data and run fusion at 1kHz   
+    // Read gyro data and run fusion at 4kHz   
     if(micros() >= gyroTime + GYRO_PERIOD){
       gyroTime += GYRO_PERIOD;
       
       imu.readGyro(true);
 
-      // Correct with reduced weight
-      if(abs(accelAngleFiltered[Y]) > 58 && abs(accelAngleFiltered[Y]) < 122){
-        imu.fusedAngle[X] = 0.995*imu.gyroAngle[X] + 0.005*accelAngleFiltered[X]; 
+      // Fuse gyro and accel roll angle with comp. filter
+      imu.fusedAngle[Y] = 0.99*imu.gyroAngle[Y] + 0.01*accelAngleFiltered[Y]; 
+
+      // Blend X,Z gyros to better estimate pitch rate relative to inertial frame
+      imu.inertialRate[X] = abs(cos(imu.fusedAngle[Y]*M_PI/180))*imu.gyroRate[X] + sin(imu.fusedAngle[Y]*M_PI/180)*imu.gyroRate[Z];
+      imu.inertialAngle[X] += imu.inertialRate[X] * imu.getDt();
+      
+      // Fuse gyro and accel data with comp. filter
+      if(abs(imu.fusedAngle[Y]) > 15){
+        imu.fusedAngle[X] = 0.99*imu.inertialAngle[X] + 0.01*accelAngleFiltered[X];
+        imu.gyroAngle[X] = imu.fusedAngle[X]; 
       }
       else{
-        // Fuse gyro and accel data with comp. filter
-        imu.fusedAngle[X] = 0.98*imu.gyroAngle[X] + 0.02*accelAngleFiltered[X]; 
+        imu.fusedAngle[X] = 0.99*imu.gyroAngle[X] + 0.01*accelAngleFiltered[X]; 
       }
-
-      // Fuse gyro and accel data with comp. filter
-      imu.fusedAngle[Y] = 0.98*imu.gyroAngle[Y] + 0.02*accelAngleFiltered[Y];        
-          
+              
       // Buffer samples
       xFusedBuffer[fuseSamp] = imu.fusedAngle[X];
       yFusedBuffer[fuseSamp] = imu.fusedAngle[Y];
@@ -155,30 +161,6 @@ void loop() {
       // Z data only from gyro
       imu.fusedAngle[Z] = imu.gyroAngle[Z];
     }
-    
-    // Check for rest conditions at interval
-    /*if(sysTime >= resetTime + RESET_PERIOD){
-      resetTime += RESET_PERIOD;
-     
-      // Correct estimation when angular rate is low (will compensate for gyro drift)
-
-      // At any angle
-      //if((abs(imu.gyroRate[X]) + abs(imu.gyroRate[Y])) < 20 ){
-      
-      // Within limited angles
-      // Look at combined magnitude of roll/pitch rates and accelerometer angle (tune)
-      if((abs(imu.gyroRate[X]) + abs(imu.gyroRate[Y])) < 30 && abs(imu.accAngle[X]) < 105 && abs(imu.accAngle[Y] < 105 && abs(imu.accVector[Z] > -0.3))){
-       
-        // Converge gyro pitch estimate towards acceleration angle measurement
-        imu.gyroAngle[X] = 0.65*imu.gyroAngle[X] + 0.35*accelAngleFiltered[X];
-        
-        // Dont correct roll angle if pitch is near 90 degrees (accel angle discontinuous here)
-        if(abs(imu.fusedAngle[X]) < 85){
-          // Converge gyro roll estimate towards acceleration angle measurement
-          imu.gyroAngle[Y] = 0.65*imu.gyroAngle[Y] + 0.35*accelAngleFiltered[Y];
-        }
-      }
-    }*/
   
     // Rate limited serial output to plotter
     if(sysTime >= printTime + PRINT_PERIOD){
@@ -189,7 +171,7 @@ void loop() {
       Serial.print(" ");
       
       Serial.print(fusedFiltered[Y]);
-      Serial.println(" "); 
+      Serial.println(" ");
       
       //Serial.print(imu.fusedAngle[Z]);
       //Serial.println(" ");
