@@ -10,9 +10,9 @@ void imuModule::readGyro(bool integrate){
   
   // Default scalar for 250 deg/s range is 1/131. 
   // Adjusted proportionally for current range (1000 deg/s)
-  gyroRate[X] = (Wire.read() << 8 | Wire.read()) / (131.0/4);  	// X-axis
-  gyroRate[Y] = (Wire.read() << 8 | Wire.read()) / (131.0/4);	// Y-axis
-  gyroRate[Z] = (Wire.read() << 8 | Wire.read()) / (131.0/4);	// Z-axis
+  gyroRate[X] = (Wire.read() << 8 | Wire.read()) / (32.75); // X-axis
+  gyroRate[Y] = (Wire.read() << 8 | Wire.read()) / (32.75);	// Y-axis
+  gyroRate[Z] = (Wire.read() << 8 | Wire.read()) / (32.75);	// Z-axis
 
     // Correct for negative values
   for(int i = X; i <= Z; i++){
@@ -74,9 +74,9 @@ void imuModule::readAcc(){
   
   // Default scalar for 2g range is 1/16384. 
   // Adjusted proportionally for current range (8g)
-  accVector[X] = (Wire.read() << 8 | Wire.read()) / (16384.0/4); // X-axis
-  accVector[Y] = (Wire.read() << 8 | Wire.read()) / (16384.0/4); // Y-axis
-  accVector[Z] = (Wire.read() << 8 | Wire.read()) / (16384.0/4); // Z-axis
+  accVector[X] = (Wire.read() << 8 | Wire.read()) / (4096.0); // X-axis
+  accVector[Y] = (Wire.read() << 8 | Wire.read()) / (4096.0); // Y-axis
+  accVector[Z] = (Wire.read() << 8 | Wire.read()) / (4096.0); // Z-axis
 
   // Correct for negative values
   for(int i = X; i <= Z; i++){
@@ -144,7 +144,7 @@ void imuModule::init(){
 void imuModule::calibrate(){
 
   //Serial.println("Starting calibration, hold still...");
-  delay(750);
+  delay(1000);
   
   float xAccBuffer[calSamples];
   float yAccBuffer[calSamples];
@@ -177,7 +177,7 @@ void imuModule::calibrate(){
     zAccBuffer[i] = accVector[Z];
     
     // Hol up
-    delay(2);
+    delay(5);
 
     // Gyro
     readGyro(false);
@@ -186,7 +186,7 @@ void imuModule::calibrate(){
     zGyroBuffer[i] = gyroRate[Z];
 
     // Hol up
-    delay(2);
+    delay(5);
   }
 
   // Sum all samples

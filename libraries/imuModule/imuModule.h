@@ -41,7 +41,7 @@ class imuModule{
   int gyroRange = 1000;
 
   // Number of samples to average for calibration
-  int calSamples = 300;
+  int calSamples = 250;
   
   // Methods
   void init();

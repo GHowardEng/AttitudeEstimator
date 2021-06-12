@@ -16,17 +16,17 @@
 // Send serial data every 10 ms (100 Hz)
 #define PRINT_PERIOD 10
 
-// Period for accel sampling (3ms, 333 Hz)
-#define ACC_PERIOD 3
+// Period for accel sampling (2ms, 500 Hz)
+#define ACC_PERIOD 2
 
 // Window size for averaging accel data
 #define N_ACC_WINDOW 25
 
-// Period for gyro sampling (250us, 4kHz)
-#define GYRO_PERIOD 250
+// Period for gyro sampling (500us, 2kHz)
+#define GYRO_PERIOD 500
 
 // Window size for filtering final fused output
-#define N_FUSE_WINDOW 10
+#define N_FUSE_WINDOW 25
 
 // Keep track of timing for periodic events
 unsigned long printTime = 0;
@@ -106,11 +106,11 @@ void loop() {
        accelAngleFiltered[Y] /= N_ACC_WINDOW;
 
        // Fixed-gain observer to correct estimates. Check acceleration magnitude
-       if(abs(imu.accelMag) < 1.02 && abs(imu.accelMag) > 0.98){
-          imu.gyroAngle[X] = imu.gyroAngle[X] + 0.025*(accelAngleFiltered[X] - imu.gyroAngle[X]);
-          imu.inertialAngle[X] = imu.inertialAngle[X] + 0.025*(accelAngleFiltered[X] - imu.inertialAngle[X]);
+       if(abs(imu.accelMag) < 1.1 && abs(imu.accelMag) > 0.9){
+          imu.gyroAngle[X] = imu.gyroAngle[X] + 0.012*(accelAngleFiltered[X] - imu.gyroAngle[X]);
+          imu.inertialAngle[X] = imu.inertialAngle[X] + 0.012*(accelAngleFiltered[X] - imu.inertialAngle[X]);
           
-          imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.025*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
+          imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.012*(accelAngleFiltered[Y] - imu.gyroAngle[Y]);
        }
     }
 
@@ -126,10 +126,15 @@ void loop() {
 
       // Blend X,Z gyros to better estimate pitch rate relative to inertial frame
       imu.inertialRate[X] = abs(cos(imu.fusedAngle[Y]*M_PI/180))*imu.gyroRate[X] + sin(imu.fusedAngle[Y]*M_PI/180)*imu.gyroRate[Z];
+      if(abs(imu.inertialAngle[X] > 90)){
+        imu.inertialRate[X] *= -1;
+      }
       imu.inertialAngle[X] += imu.inertialRate[X] * imu.getDt();
+
+
       
       // Fuse gyro and accel data with comp. filter
-      if(abs(imu.fusedAngle[Y]) > 15){
+      if(abs(imu.fusedAngle[Y]) > 10){
         imu.fusedAngle[X] = 0.99*imu.inertialAngle[X] + 0.01*accelAngleFiltered[X];
         imu.gyroAngle[X] = imu.fusedAngle[X]; 
       }
