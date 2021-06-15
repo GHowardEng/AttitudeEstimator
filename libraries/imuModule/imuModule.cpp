@@ -26,13 +26,14 @@ void imuModule::readGyro(bool integrate){
   gyroRate[X] -= xGyroBias;
   gyroRate[Y] -= yGyroBias;
   gyroRate[Z] -= zGyroBias;
+  
+  // Store raw rate before correction
+  gyroRateRaw[X] = gyroRate[X];
 
   if (accVector[Z] < 0){
 	gyroRate[X] *= -1;
+	gyroRate[Y] *= -1;
   }
-
-	
-  //inertialRate[X] = cos(abs(accAngle[Y])*M_PI/180)*gyroRate[X] + sin(accAngle[Y]*M_PI/180)*gyroRate[Z];
  
  // Record timestep
   lastTime = currentTime;
@@ -59,6 +60,13 @@ void imuModule::readGyro(bool integrate){
 	}
 	else if(gyroAngle[Z] < -360){
 	  gyroAngle[Z] += 360;
+	}
+	
+	if(inertialAngle[Z] > 360){
+	  inertialAngle[Z] -= 360;
+	}
+	else if(inertialAngle[Z] < -360){
+	  inertialAngle[Z] += 360;
 	}
   }
   
@@ -103,7 +111,7 @@ void imuModule::readAcc(){
   // Adjust for attitudes greater than +/- 90 degrees (when unit is upside-down)
   // This works but creates some discontinuities in the signal when transitioning from +180 to -180
   // It also allows for constant correction of the gyro estimate
-    if(accVector[Z] < 0.0)
+    /*if(accVector[Z] < 0.0)
 	{				
 		if(accAngle[Y] > 0){
 			accAngle[Y] = - (accAngle[Y] - 180);
@@ -111,7 +119,7 @@ void imuModule::readAcc(){
 		else{
 			accAngle[Y] = (-180 - accAngle[Y]);		
 		}
-	}
+	}*/
 }
 
 // Read all axes
@@ -122,6 +130,9 @@ void imuModule::readIMU(){
 
 // Initialization function
 void imuModule::init(){
+	
+  pinMode(CAL_LED, OUTPUT);
+  
   Wire.beginTransmission(this->addr);       // Start communication with IMU
   Wire.write(0x6B);                         // Point to register 6B
   Wire.write(0x00);                         // Reset
@@ -143,8 +154,16 @@ void imuModule::init(){
 // Calibration function
 void imuModule::calibrate(){
 
-  //Serial.println("Starting calibration, hold still...");
-  delay(1000);
+  // Signal calibration start
+  digitalWrite(CAL_LED, HIGH);
+  delay(120);
+  digitalWrite(CAL_LED, LOW);
+  
+  // Give time for motion to settle
+  delay(2000);
+  
+  // Signal calibration running
+  digitalWrite(CAL_LED, HIGH);
   
   float xAccBuffer[calSamples];
   float yAccBuffer[calSamples];
@@ -164,9 +183,11 @@ void imuModule::calibrate(){
   zGyroBias = 0;
   
   // Reset gyro integrated angles
-  gyroAngle[X] = 0;
-  gyroAngle[Y] = 0;
-  gyroAngle[Z] = 0;
+  for(int i = 0; i <= Z; i++){
+	  gyroAngle[i] = 0;
+	  inertialAngle[i] = 0;
+  }
+
   
   // Collect n samples of data with no bias correction applied
   for (int i = 0; i < calSamples; i++){
@@ -211,7 +232,10 @@ void imuModule::calibrate(){
   xGyroBias /= calSamples;
   yGyroBias /= calSamples;
   zGyroBias /= calSamples;
-
+	
+  // Calibration done
+  digitalWrite(CAL_LED, LOW);
+  
   // Serial feedback (optional)
   /*Serial.print("Done! X Acc Bias: ");
   Serial.print(xAccBias);

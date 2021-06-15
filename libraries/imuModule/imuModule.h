@@ -10,6 +10,8 @@
 #define ACC_START 0x3B
 #define GYRO_START 0x43
 
+#define CAL_LED 2
+
 enum axes {X=0,Y,Z};
 
 class imuModule{
@@ -24,6 +26,7 @@ class imuModule{
   
   // Gyro
   float gyroRate[3];
+  float gyroRateRaw[3];
   float gyroAngle[3] = {0,0,0};
   float inertialRate[3] = {0,0,0};
   float inertialAngle[3] = {0,0,0};
@@ -41,7 +44,7 @@ class imuModule{
   int gyroRange = 1000;
 
   // Number of samples to average for calibration
-  int calSamples = 250;
+  int calSamples = 225;
   
   // Methods
   void init();
@@ -68,19 +71,3 @@ class imuModule{
   float dt = 0;
 
 };
-
-
-  /*
-  // Configure Accelerometer Sensitivity - Full Scale Range (default +/- 2g)
-  Wire.beginTransmission(MPU);
-  Wire.write(0x1C);                  //Talk to the ACCEL_CONFIG register (1C hex)
-  Wire.write(0x10);                  //Set the register bits as 00010000 (+/- 8g full scale range)
-  Wire.endTransmission(true);
-  
-  // Configure Gyro Sensitivity - Full Scale Range (default +/- 250deg/s)
-  Wire.beginTransmission(MPU);
-  Wire.write(0x1B);                   // Talk to the GYRO_CONFIG register (1B hex)
-  Wire.write(0x10);                   // Set the register bits as 00010000 (1000deg/s full scale)
-  Wire.endTransmission(true);
-  delay(20);*/
-////////////////////////////////////////////////////////////////////////////////////////////////
