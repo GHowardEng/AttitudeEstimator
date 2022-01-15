@@ -103,6 +103,8 @@ void loop() {
     // Read accel at sample rate
     if (sysTime >= accTime + ACC_PERIOD) {
       accTime += ACC_PERIOD;
+
+      // Read data
       imu.readAcc();
 
       // Filter acceleration data
