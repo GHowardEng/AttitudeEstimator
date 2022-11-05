@@ -25,10 +25,10 @@
 #define OUTPUT_PERIOD 66
 
 // Period for accel sampling (2ms, 500 Hz)
-#define ACC_PERIOD 5
+#define ACC_PERIOD 2
 
 // Period for gyro sampling (2000us, 500 Hz)
-#define GYRO_PERIOD 5000
+#define GYRO_PERIOD 2000
 
 // Filter Coefficients
 // Gyro
@@ -198,6 +198,8 @@ void loop() {
         Serial.print(output[Z]);
         Serial.print(" ");
       }
+
+      Serial.println(" ");
 
     }
   }
