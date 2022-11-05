@@ -9,7 +9,7 @@
 // Z Angle - Yaw LEFT POSITIVE;
 
 #include "imuModule.h"
-#include "movingAverage.h"
+#include "filter.h"
 
 // Calibration button
 #define BUTTON 34
@@ -21,24 +21,30 @@
 //////////////////////////////////////
 
 // Update Rates
-// Update output every 10 ms (100 Hz)
-#define OUTPUT_PERIOD 10
+// Update output every 50 ms (20 Hz)
+#define OUTPUT_PERIOD 66
 
 // Period for accel sampling (2ms, 500 Hz)
-#define ACC_PERIOD 2
+#define ACC_PERIOD 5
 
-// Period for gyro sampling (500us, 2kHz)
-#define GYRO_PERIOD 500
+// Period for gyro sampling (2000us, 500 Hz)
+#define GYRO_PERIOD 5000
 
-// Filter Windows
-// Window size for averaging accel data
-#define N_ACC_WINDOW 20
+// Filter Coefficients
+// Gyro
+#define FP_GYRO 0.06912
 
-// Window for Z acceleration vector
-#define Z_WINDOW 200
+// Accel data
+#define FP_ACC 0.06912
 
-// Window size for filtering final fused output
-#define N_FUSE_WINDOW 5
+// Z acceleration vector
+#define FP_Z 0.03456 
+
+// Filtering final fused output
+#define N_FUSE_WINDOW 2
+
+// Flag to allow yaw estimation
+#define ENABLE_YAW 1
 
 // Keep track of timing for periodic events
 unsigned long outputTime = 0;
@@ -72,17 +78,17 @@ void loop() {
 
   // Instantiate filters and variables
   // Acceleration filtering
-  movingAverage xAccFilter(N_ACC_WINDOW);
-  movingAverage yAccFilter(N_ACC_WINDOW);
-  movingAverage zAccFilter(Z_WINDOW);
+  filter xAccFilter(FP_ACC);
+  filter yAccFilter(FP_ACC);
+  filter zAccFilter(FP_Z);
 
   float accelAngleFiltered[2];
   float zFiltered = 0;
 
-  // Output filter
-  movingAverage xFusedFilter(N_FUSE_WINDOW);
-  movingAverage yFusedFilter(N_FUSE_WINDOW);
-  float fusedFiltered[2];
+  // Gyro
+  // filter xGyroFilter(FP_GYRO);
+  // filter yGyroFilter(FP_GYRO);
+  //filter zGyroFilter(FP_GYRO);
 
   // Extra stuff
   float output[3];
@@ -108,16 +114,16 @@ void loop() {
       imu.readAcc();
 
       // Filter acceleration data
-      accelAngleFiltered[X] = xAccFilter.filter(imu.accAngle[X]);
-      accelAngleFiltered[Y] = yAccFilter.filter(imu.accAngle[Y]);
-      zFiltered = zAccFilter.filter(imu.accVector[Z]);
+      accelAngleFiltered[X] = xAccFilter.updateFilter(imu.accAngle[X]);
+      accelAngleFiltered[Y] = yAccFilter.updateFilter(imu.accAngle[Y]);
+      zFiltered = zAccFilter.updateFilter(imu.accVector[Z]);
 
       // Fixed-gain observer to correct estimates. Check acceleration magnitude
       if (abs(imu.accelMag) < 1.05 && abs(imu.accelMag) > 0.95) {
-        imu.gyroAngle[X] = imu.gyroAngle[X] + 0.012 * (accelAngleFiltered[X] - imu.gyroAngle[X]);
-        imu.inertialAngle[X] = imu.inertialAngle[X] + 0.012 * (accelAngleFiltered[X] - imu.inertialAngle[X]);
+        imu.gyroAngle[X] = imu.gyroAngle[X] + 0.05 * (accelAngleFiltered[X] - imu.gyroAngle[X]);
+        imu.inertialAngle[X] = imu.inertialAngle[X] + 0.05 * (accelAngleFiltered[X] - imu.inertialAngle[X]);
 
-        imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.012 * (accelAngleFiltered[Y] - imu.gyroAngle[Y]);
+        imu.gyroAngle[Y] = imu.gyroAngle[Y] + 0.05 * (accelAngleFiltered[Y] - imu.gyroAngle[Y]);
       }
     }
 
@@ -162,18 +168,15 @@ void loop() {
       digitalWrite(LED, LOW);
     }
 
+    //////////////////////////////////////////////////////
     // Output at specified update rate
     if (sysTime >= outputTime + OUTPUT_PERIOD) {
       outputTime += OUTPUT_PERIOD;
-
-      // Filter final output
-      fusedFiltered[X] = xFusedFilter.filter(imu.fusedAngle[X]);
-      fusedFiltered[Y] = yFusedFilter.filter(imu.fusedAngle[Y]);
       
-      // Output pitch directly (already in correct range)
-      output[X] = fusedFiltered[X];
+      // Output pitch
+      output[X] = imu.fusedAngle[X];
       // Output roll
-      output[Y] = fusedFiltered[Y];
+      output[Y] = imu.fusedAngle[Y];
       // Output heading
       output[Z] = imu.inertialAngle[Z];
 
@@ -184,22 +187,6 @@ void loop() {
         flipped = false;
       }
 
-      /*float corrected=0;
-        //if(imu.accVector[Z] < 0.0 && abs(imu.accelMag) < 1.05 && abs(imu.accelMag) > 0.95)
-        if(zFiltered < 0.0)
-        {
-        if(fusedFiltered[Y] > 0){
-          corrected = - (fusedFiltered[Y] - 180);
-        }
-        else{
-          corrected = (-180 - fusedFiltered[Y]);
-        }
-        output[Y] = output[Y] + 0.15 * (corrected - output[Y]);
-        correctionApplied = true;
-        }
-        else{
-        }*/
-
       // Serial output
       Serial.print(output[X]);
       Serial.print(" ");
@@ -207,11 +194,11 @@ void loop() {
       Serial.print(output[Y]);
       Serial.print(" ");
 
-      //Serial.print(output[Z]);
-      //Serial.print(" ");
+      if(ENABLE_YAW){
+        Serial.print(output[Z]);
+        Serial.print(" ");
+      }
 
-      Serial.print(flipped);
-      Serial.println(" ");
     }
   }
 }
