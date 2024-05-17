@@ -28,11 +28,6 @@ class imuModule{
   float gyroRate[3];
   float gyroRateRaw[3];
   float gyroAngle[3] = {0,0,0};
-  float inertialRate[3] = {0,0,0};
-  float inertialAngle[3] = {0,0,0};
-  
-  // Filter output
-  float fusedAngle[3];
 
   // Hardware info
   const int addr = 0x68; // MPU6050 I2C address
@@ -50,7 +45,7 @@ class imuModule{
   void init();
   void readGyro(bool integrate);
   void readAcc();
-  void readIMU();
+  void readIMU(bool integrate);
   void calibrate();
   float getDt() {return dt;};
 

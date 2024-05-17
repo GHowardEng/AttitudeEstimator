@@ -29,6 +29,8 @@ void imuModule::readGyro(bool integrate){
   
   // Store raw rate before correction
   gyroRateRaw[X] = gyroRate[X];
+  gyroRateRaw[Y] = gyroRate[Y];
+  gyroRateRaw[Z] = gyroRate[Z];
 
   if (accVector[Z] < 0){
 	gyroRate[X] *= -1;
@@ -60,14 +62,7 @@ void imuModule::readGyro(bool integrate){
 	}
 	else if(gyroAngle[Z] < -360){
 	  gyroAngle[Z] += 360;
-	}
-	
-	if(inertialAngle[Z] > 360){
-	  inertialAngle[Z] -= 360;
-	}
-	else if(inertialAngle[Z] < -360){
-	  inertialAngle[Z] += 360;
-	}
+	}	
   }
   
 }
@@ -123,9 +118,9 @@ void imuModule::readAcc(){
 }
 
 // Read all axes
-void imuModule::readIMU(){
+void imuModule::readIMU(bool integrate){
 	readAcc();
-	readGyro(false);
+	readGyro(integrate);
 }
 
 // Initialization function
@@ -185,7 +180,6 @@ void imuModule::calibrate(){
   // Reset gyro integrated angles
   for(int i = 0; i <= Z; i++){
 	  gyroAngle[i] = 0;
-	  inertialAngle[i] = 0;
   }
 
   
