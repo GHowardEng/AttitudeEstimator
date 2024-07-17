@@ -13,7 +13,7 @@ class filter{
 	filter(float fp);
 	float updateFilter(float x);
 	float getState(){return state;};
-	int getCoeff(){return coeff;};
+	float getCoeff(){return coeff;};
 	void clear();
 	void set(float x);
 	
